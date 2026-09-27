@@ -32,6 +32,12 @@ The patcher accepts only this exact original input:
 c1df8edc1f6539cb46c3b4122d2431b2651cc9239c7743ea463899a462016c79  StrmAssistant.dll
 ```
 
+Expected patched DLL SHA256 (also checked by the tests):
+
+```text
+af1d3bab06454624fde8243582e544650cc4ff642d84c9874cc12f433f1cb854  StrmAssistant.dll
+```
+
 It also checks the managed method signature and full method body, rejects signed
 assemblies, verifies the decoded output, and records the two edits and hashes in
 `patch-manifest.json`. A new upstream DLL needs fresh inspection and an updated

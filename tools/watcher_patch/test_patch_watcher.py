@@ -150,6 +150,12 @@ class WatcherPatchTests(unittest.TestCase):
                 with self.assertRaises(PatchError):
                     patch_bytes(data)
 
+    def test_known_output_checksum(self):
+        self.assertEqual(
+            sha256(self.patched),
+            "af1d3bab06454624fde8243582e544650cc4ff642d84c9874cc12f433f1cb854",
+        )
+
     def test_reproducible_patch_and_manifest(self):
         patched, manifest = patch_bytes(self.source)
         self.assertEqual(patched, self.patched)
