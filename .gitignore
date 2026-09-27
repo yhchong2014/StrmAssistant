@@ -9,3 +9,12 @@ x64/
 build/
 [Bb]in/
 [Oo]bj/
+
+# Local tooling and generated test DLLs
+.venv/
+__pycache__/
+/artifacts/
+
+# Never publish server diagnostics or local configuration copies
+/diagnostics/
+/embyserver*.txt
