@@ -28,3 +28,11 @@
 3. Go to the Plugins page and check the plugin version and settings
 
 **Note**: The minimum required Emby version is 4.8.5.0.
+
+## Emby 4.9.5.0 watcher-disabled test DLL
+
+The supplied root `StrmAssistant.dll` differs from the older Lite source here.
+A separate [patch workflow](tools/watcher_patch/README.md) reproduces a test DLL
+that disables only its extra STRM file watcher, leaving Chinese search intact.
+It does not rebuild the Lite project or establish full 4.9 compatibility.
+Read the [installation and rollback guide](tools/watcher_patch/INSTALL.md) first.

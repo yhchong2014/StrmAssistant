@@ -59,3 +59,11 @@
 ### 星星数
 
 [![Star History Chart](https://api.star-history.com/svg?repos=sjtuross/strmassistant&type=Date)](https://www.star-history.com/#sjtuross/strmassistant&Date)
+
+## Emby 4.9.5.0 文件监听关闭测试版
+
+仓库根目录提供的 `StrmAssistant.dll` 与本仓库的旧 Lite 源码不同。
+独立的 [GitHub Actions 补丁流程](tools/watcher_patch/README.md) 可生成测试 DLL，
+只关闭插件额外的 STRM 文件监听，保留中文增强搜索等功能；不是重新编译 Lite 版。
+完整兼容性及启动速度仍需实机验证。安装前请阅读
+[安装、验证与回滚说明](tools/watcher_patch/INSTALL.md)，先停止 Emby 并备份。

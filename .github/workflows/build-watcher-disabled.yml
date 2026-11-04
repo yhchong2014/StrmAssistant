@@ -1,0 +1,75 @@
+name: Build watcher-disabled test DLL (Emby 4.9)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - arena/01a0e20b-strmassistant
+    paths:
+      - StrmAssistant.dll
+      - tools/watcher_patch/**
+      - .github/workflows/build-watcher-disabled.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - StrmAssistant.dll
+      - tools/watcher_patch/**
+      - .github/workflows/build-watcher-disabled.yml
+
+permissions:
+  contents: read
+
+jobs:
+  patch-and-test:
+    name: Patch supplied DLL and verify only the watcher changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the supplied DLL and patch tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tools/watcher_patch/requirements.txt
+
+      - name: Install pinned IL inspection dependencies
+        run: python -m pip install -r tools/watcher_patch/requirements.txt
+
+      - name: Test input safeguards, byte changes, and watcher control flow
+        run: python -m unittest discover -s tools/watcher_patch -p 'test_*.py' -v
+
+      - name: Produce watcher-disabled test DLL (not a Lite source build)
+        run: python tools/watcher_patch/patch_watcher.py
+
+      - name: Verify output checksum and unchanged source DLL
+        shell: bash
+        run: |
+          (cd artifacts/watcher-disabled && sha256sum -c SHA256SUMS)
+          git diff --exit-code -- StrmAssistant.dll
+          {
+            echo '## Watcher-disabled test DLL'
+            echo ''
+            echo 'Download **StrmAssistant-1.0.0.40-watcher-disabled-test** from this run’s Artifacts section.'
+            echo ''
+            echo 'This patches the supplied DLL, not the older Lite source. Exactly two IL bytes change.'
+            echo 'Chinese search and the other feature implementations are unchanged.'
+            echo 'Read INSTALL.md before replacing the plugin. No live Emby runtime test has been performed.'
+            echo ''
+            echo '### SHA256'
+            echo '```text'
+            cat artifacts/watcher-disabled/SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload DLL, manifest, checksum, and installation guide
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: StrmAssistant-1.0.0.40-watcher-disabled-test
+          path: artifacts/watcher-disabled/
+          if-no-files-found: error
+          retention-days: 30
