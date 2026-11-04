@@ -1,29 +1,52 @@
 name: Build Plugin
 
 on:
+  workflow_dispatch:
   push:
     branches:
+      - main
       - tab-ui
       - simple-ui
       - lite
+      - 'arena/**'
   pull_request:
     branches:
+      - main
       - tab-ui
       - simple-ui
       - lite
+
+permissions:
+  contents: read
+
+env:
+  # The PostBuild target uses $(ILRepack), which is provided by the ILRepack NuGet package.
+  EMBY_PLUGINS_DIR: ${{ github.workspace }}\emby-plugins
 
 jobs:
   build:
+    name: Build Lite plugin DLL
     runs-on: windows-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           dotnet-version: '6.x'
+
+      # The csproj PostBuild target ILRepacks the assembly into
+      # %AppData%\Emby-Server\programdata\plugins, which does not exist on a clean runner.
+      - name: Prepare output directories
+        shell: pwsh
+        run: |
+          $pluginDir = Join-Path $env:APPDATA 'Emby-Server\programdata\plugins'
+          New-Item -ItemType Directory -Force -Path $pluginDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $env:EMBY_PLUGINS_DIR | Out-Null
+          Write-Output "ILRepack output: $pluginDir"
 
       - name: Restore dependencies
         run: dotnet restore
@@ -31,8 +54,33 @@ jobs:
       - name: Build the project
         run: dotnet build --no-restore --configuration Release
 
+      - name: Copy build output
+        shell: pwsh
+        run: |
+          $pluginDir = Join-Path $env:APPDATA 'Emby-Server\programdata\plugins'
+          $dlls = Get-ChildItem -Path $pluginDir -Filter 'StrmAssistant*.dll' -ErrorAction SilentlyContinue
+          if (-not $dlls) {
+            Write-Error "No StrmAssistant DLL was produced in $pluginDir (the ILRepack PostBuild step did not run)."
+            exit 1
+          }
+          $dlls | Copy-Item -Destination $env:EMBY_PLUGINS_DIR -Force
+          $dlls | ForEach-Object { Write-Output ("{0}  {1:N1} KB" -f $_.Name, ($_.Length / 1KB)) }
+
+      - name: Report version and checksum
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path $env:EMBY_PLUGINS_DIR -Filter '*.dll' | ForEach-Object {
+            $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
+            $version = (Get-Item $_.FullName).VersionInfo.FileVersion
+            Write-Output ("{0}  {1}" -f $hash, $_.Name)
+            "| Artifact | Version | SHA256 |`n| --- | --- | --- |`n| ``$($_.Name)`` | $version | ``$hash`` |" |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
+
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: StrmAssistant
-          path: C:\Users\runneradmin\AppData\Roaming\Emby-Server\programdata\plugins\StrmAssistant${{ github.ref_name == 'lite' && 'Lite' || '' }}.dll
+          name: StrmAssistantLite-${{ github.run_number }}
+          path: ${{ env.EMBY_PLUGINS_DIR }}\*.dll
+          if-no-files-found: error
+          retention-days: 30
